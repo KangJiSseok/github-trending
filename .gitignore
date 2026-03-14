@@ -6,3 +6,4 @@ dist/
 .sisyphus/
 .env
 .env.local
+packages/db/generated/
