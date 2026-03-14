@@ -6,6 +6,9 @@
     "build": "corepack pnpm -r --if-present build",
     "test": "corepack pnpm -r --if-present test",
     "lint": "corepack pnpm -r --if-present lint",
-    "dev:web": "corepack pnpm --filter web dev"
+    "dev:web": "corepack pnpm --filter web dev",
+    "db:up": "docker compose up -d",
+    "db:migrate": "corepack pnpm --filter @repo/db db:migrate",
+    "db:generate": "corepack pnpm --filter @repo/db db:generate"
   }
 }
