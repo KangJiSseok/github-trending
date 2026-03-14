@@ -1,0 +1,136 @@
+generator client {
+  provider   = "prisma-client"
+  output     = "../generated/client"
+  engineType = "client"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model Repository {
+  id                 String                  @id @default(cuid())
+  githubRepositoryId BigInt                  @unique @map("github_repository_id")
+  owner              String
+  name               String
+  fullName           String                  @unique @map("full_name")
+  description        String?
+  defaultBranch      String?                 @map("default_branch")
+  primaryLanguage    String?                 @map("primary_language")
+  createdAt          DateTime                @default(now()) @map("created_at")
+  updatedAt          DateTime                @updatedAt @map("updated_at")
+  rawEvents          RawEvent[]
+  dailyMetrics       RepositoryDailyMetric[]
+  weeklyMetrics      RepositoryWeeklyMetric[]
+  generatedSummaries GeneratedSummary[]
+
+  @@unique([owner, name])
+  @@map("repositories")
+}
+
+model RawEvent {
+  id             String       @id @default(cuid())
+  githubEventId  String       @unique @map("github_event_id")
+  repositoryId   String       @map("repository_id")
+  ingestionRunId String?      @map("ingestion_run_id")
+  eventType      String       @map("event_type")
+  actorLogin     String?      @map("actor_login")
+  occurredAt     DateTime     @map("occurred_at")
+  payload        Json
+  createdAt      DateTime     @default(now()) @map("created_at")
+  repository     Repository   @relation(fields: [repositoryId], references: [id], onDelete: Cascade)
+  ingestionRun  IngestionRun? @relation(fields: [ingestionRunId], references: [id], onDelete: SetNull)
+
+  @@index([ingestionRunId])
+  @@index([repositoryId, occurredAt])
+  @@map("raw_events")
+}
+
+model RepositoryDailyMetric {
+  id                              String      @id @default(cuid())
+  repositoryId                    String      @map("repository_id")
+  metricDate                      DateTime    @db.Date @map("metric_date")
+  watchEvents                     Int         @default(0) @map("watch_events")
+  forkEvents                      Int         @default(0) @map("fork_events")
+  issueEvents                     Int         @default(0) @map("issue_events")
+  pullRequestEvents               Int         @default(0) @map("pull_request_events")
+  pullRequestReviewCommentEvents  Int         @default(0) @map("pull_request_review_comment_events")
+  pushEvents                      Int         @default(0) @map("push_events")
+  createEvents                    Int         @default(0) @map("create_events")
+  score                           Int         @default(0)
+  createdAt                       DateTime    @default(now()) @map("created_at")
+  updatedAt                       DateTime    @updatedAt @map("updated_at")
+  repository                      Repository  @relation(fields: [repositoryId], references: [id], onDelete: Cascade)
+
+  @@unique([repositoryId, metricDate])
+  @@map("repository_daily_metrics")
+}
+
+model RepositoryWeeklyMetric {
+  id                              String      @id @default(cuid())
+  repositoryId                    String      @map("repository_id")
+  weekStartDate                   DateTime    @db.Date @map("week_start_date")
+  watchEvents                     Int         @default(0) @map("watch_events")
+  forkEvents                      Int         @default(0) @map("fork_events")
+  issueEvents                     Int         @default(0) @map("issue_events")
+  pullRequestEvents               Int         @default(0) @map("pull_request_events")
+  pullRequestReviewCommentEvents  Int         @default(0) @map("pull_request_review_comment_events")
+  pushEvents                      Int         @default(0) @map("push_events")
+  createEvents                    Int         @default(0) @map("create_events")
+  score                           Int         @default(0)
+  createdAt                       DateTime    @default(now()) @map("created_at")
+  updatedAt                       DateTime    @updatedAt @map("updated_at")
+  repository                      Repository  @relation(fields: [repositoryId], references: [id], onDelete: Cascade)
+
+  @@unique([repositoryId, weekStartDate])
+  @@map("repository_weekly_metrics")
+}
+
+model KeywordDailyMetric {
+  id              String    @id @default(cuid())
+  keyword         String
+  metricDate      DateTime  @db.Date @map("metric_date")
+  repositoryCount Int       @default(0) @map("repository_count")
+  totalScore      Int       @default(0) @map("total_score")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  @@unique([keyword, metricDate])
+  @@map("keyword_daily_metrics")
+}
+
+model GeneratedSummary {
+  id           String      @id @default(cuid())
+  repositoryId String?     @map("repository_id")
+  subjectType  String      @map("subject_type")
+  subjectKey   String      @map("subject_key")
+  window       String
+  summaryDate  DateTime    @db.Date @map("summary_date")
+  content      String
+  createdAt    DateTime    @default(now()) @map("created_at")
+  repository   Repository? @relation(fields: [repositoryId], references: [id], onDelete: SetNull)
+
+  @@unique([subjectType, subjectKey, window, summaryDate])
+  @@index([repositoryId])
+  @@map("generated_summaries")
+}
+
+model IngestionRun {
+  id            String     @id @default(cuid())
+  source        String     @default("github")
+  status        String     @default("pending")
+  cursor        String?
+  startedAt     DateTime   @default(now()) @map("started_at")
+  completedAt   DateTime?  @map("completed_at")
+  eventsFetched Int        @default(0) @map("events_fetched")
+  eventsStored  Int        @default(0) @map("events_stored")
+  errorMessage  String?    @map("error_message")
+  createdAt     DateTime   @default(now()) @map("created_at")
+  updatedAt     DateTime   @updatedAt @map("updated_at")
+  rawEvents     RawEvent[]
+
+  @@index([status, startedAt])
+  @@map("ingestion_runs")
+}
